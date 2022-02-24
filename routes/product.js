@@ -1,5 +1,5 @@
-import express from "express";
-import productCtr from "../controllers/product";
+const express = require('express'); 
+const productCtr = require("../controllers/product");
 
 const router = express.Router();
 

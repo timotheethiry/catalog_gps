@@ -1,10 +1,10 @@
-import mongoose from 'mongoose';
-import { Validator } from 'node-input-validator';
+const mongoose = require('mongoose');
+const { Validator } = require('node-input-validator');
 
 const Product = require('../models/product');
 
 exports.createProduct = (req, res, next) => {
-    const productInput = JSON.parse(req.body);
+    const productInput = {...req.body};
     
     const validInput = new Validator(productInput, {
         name: 'required|string|length:100',
@@ -21,10 +21,7 @@ exports.createProduct = (req, res, next) => {
             res.status(400).send(validInput.errors);
         } else {
             
-            const newId = new mongoose.Types.ObjectId();
-            
             const product = new Product({
-                productId: newId,
                 name: productInput.name,
                 description: productInput.description,
                 imageUrl: productInput.imageUrl,
@@ -37,7 +34,7 @@ exports.createProduct = (req, res, next) => {
             .catch(error => res.status(500).json({ error }));
         };
     })
-    .catch(errors => res.status(500).send(validInput.errors));
+    .catch(() => res.status(500).send(validInput.errors));
 }
 
 exports.getProduct = (req, res, next) => {
@@ -55,7 +52,7 @@ exports.getAllProducts = (req, res, next) => {
 };
 
 exports.modifyProduct = (req, res, next) => {
-    const productInput = JSON.parse(req.body);
+    const productInput = {...req.body};
 
     const validInput = new Validator(productInput, {
         name: 'required|string|length:100',
@@ -81,7 +78,7 @@ exports.modifyProduct = (req, res, next) => {
             .catch(error => res.status(404).json({ error }));
         }
     })
-    .catch(errors => res.status(500).send(validInput.errors));
+    .catch(() => res.status(500).send(validInput.errors));
 };
 
 exports.deleteProduct = (req, res, next) => {
