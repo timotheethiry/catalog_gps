@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 
 const productRoutes = require('./routes/product');
+const categoryRoutes = require('./routes/category');
 
 const credentials = {user: process.env.USER, pw: process.env.PW, db: process.env.DB, cl: process.env.CL};
 const origin = `mongodb+srv://${credentials.user}:${credentials.pw}@${credentials.cl}.pd0ue.mongodb.net/${credentials.db}?retryWrites=true&w=majority`;
@@ -24,5 +25,6 @@ app.use((req, res, next) => {
 });
 
 app.use('/api/products', productRoutes);
+app.use('/api/categories', categoryRoutes);
 
 module.exports = app;

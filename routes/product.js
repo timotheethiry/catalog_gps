@@ -13,4 +13,7 @@ router.get('/:id', productCtr.getProduct);
 
 router.get('/', productCtr.getAllProducts);
 
+router.get('/categories/:id', productCtr.getAllProductsByCategory);
+
+
 module.exports = router;

@@ -10,7 +10,8 @@ exports.createProduct = (req, res, next) => {
         name: 'required|string|length:100',
         description: 'required|string|length:1000',
         imageUrl: 'required|url|length:255',
-        price: 'required|numeric|min:0|max:10000' // to add digitsBetween:min,maxs
+        price: 'required|numeric|min:0|max:10000', // to add digitsBetween:min,max
+        categories: 'array|length:10' 
     }); 
 
     validInput
@@ -25,7 +26,8 @@ exports.createProduct = (req, res, next) => {
                 name: productInput.name,
                 description: productInput.description,
                 imageUrl: productInput.imageUrl,
-                price: productInput.price
+                price: productInput.price,
+                categories: productInput.categories
             });
             
             product
@@ -51,6 +53,13 @@ exports.getAllProducts = (req, res, next) => {
     .catch(error => res.status(404).json({ error }));
 };
 
+exports.getAllProductsByCategory = (req, res, next) => {
+
+    Product.find({categories: req.params.id})
+    .then(products => res.status(200).json(products))
+    .catch(error => res.status(404).json({ error }));
+};
+
 exports.modifyProduct = (req, res, next) => {
     const productInput = {...req.body};
 
@@ -58,7 +67,8 @@ exports.modifyProduct = (req, res, next) => {
         name: 'required|string|length:100',
         description: 'required|string|length:1000',
         imageUrl: 'required|url|length:255',
-        price: 'required|numeric|min:0|max:10000' // to add digitsBetween:min,maxs
+        price: 'required|numeric|min:0|max:10000', // to add digitsBetween:min,maxs
+        categories: 'array|length:10' 
     });  
 
     validInput
