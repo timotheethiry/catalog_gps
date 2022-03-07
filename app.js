@@ -1,8 +1,20 @@
+require('dotenv').config();
 const express = require('express');
+const mongoose = require('mongoose');
+
+const productRoutes = require('./routes/product');
+const categoryRoutes = require('./routes/category');
+
+const credentials = {user: process.env.USER, pw: process.env.PW, db: process.env.DB, cl: process.env.CL};
+const origin = `mongodb+srv://${credentials.user}:${credentials.pw}@${credentials.cl}.pd0ue.mongodb.net/${credentials.db}?retryWrites=true&w=majority`;
 
 const app = express();
-
 app.use(express.json());
+
+mongoose.connect(origin, { useNewUrlParser: true, useUnifiedTopology: true })
+.then(() => console.log('Connected to MongoDB !'))
+.catch(() => console.log('Connexion to MongoDB failed !'));
+
 
 // CORS
 app.use((req, res, next) => {
@@ -12,36 +24,7 @@ app.use((req, res, next) => {
     next();
 });
 
-app.post('/api/products', (req, res) => {
-    console.log(req.body);
-    res.status(201).json({message: 'New product created!'})
-})
-
-app.get('/api/products', (req, res) => {
-    const products = [
-        {
-            _id: 1,
-            name: 'Iphone 13 pro',
-            description: 'iphone 13 pro, écran 6.1 pouces',
-            image: 'https://via.placeholder.com/200',
-            price: 1100
-        },
-        {
-            _id: 2,
-            name: 'machin',
-            description: 'dsescription de machin',
-            image: 'https://via.placeholder.com/200',
-            price: 800
-        },
-        {
-            _id: 3,
-            name: 'truc',
-            description: 'description de truc',
-            image: 'https://via.placeholder.com/200',
-            price: 50
-        }
-    ];
-    res.status(200).json(products);
-});
+app.use('/api/products', productRoutes);
+app.use('/api/categories', categoryRoutes);
 
 module.exports = app;
