@@ -82,7 +82,8 @@ exports.logUser = (req, res, next) => {
                             },
                             'RANDOM_TOKEN_SECRET',
                             { expiresIn: '24h' }
-                        )
+                        ),
+						isAdmin: user.isAdmin
                     });
                 })
                 .catch(error => res.status(500).json({ error: "Internal servor error" }));
