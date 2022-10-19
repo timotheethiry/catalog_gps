@@ -72,6 +72,8 @@ exports.logUser = (req, res, next) => {
                         Promise.all(f);
                         return res.status(401).json({ error: "Username or password is invalid !"});
                     }
+
+                    const jwt = require('jsonwebtoken');
                     
                     res.status(200).json({ 
                         userId: user.userId, 
@@ -135,7 +137,7 @@ exports.deleteUser = (req, res, next) => {
     User.findOne({ userId: req.params.id })
     .then( user => {
         if (!user) {
-            return res.status(401).json({ error: "Didn't find user !"}); 
+            return res.status(404).json({ error: "Didn't find user !"}); 
         }
 
         if ( user.userId == res.locals.userId ) {
@@ -148,3 +150,49 @@ exports.deleteUser = (req, res, next) => {
     })
     .catch(error => res.status(500).json({ error: "Internal servor error" }));
 };
+
+exports.updateUser = (req, res) => {
+
+    const validInput = new Validator(req.body, {
+        email: 'required|email|length:100',
+        password: 'required',
+        lastname: 'required|string|length:100',
+        firstname: 'required|string|length:100'
+    });
+    
+    validInput.check()
+    .then((matched) =>{
+        if(!matched) {
+            res.staus(403).json(validInput.errors)
+        } else {
+            user.findOne({userId: req.params.id})
+            .then(user => {
+                if (!user) {
+                    res.status(404).json({ error: "User not found !"}); 
+                }
+
+                if ( user.userId == res.locals.userId ) {
+
+                    const updateUser = {
+                        userId: user.userId,
+                        email: user.email,
+                        password: user.password,
+                        lastname: req.body.lastname,
+                        firstname: req.body.firstname,
+                        isAdmin: false
+                    }
+
+
+                    User.updateOne({ userId: req.params.id }, { ...req.body })
+                    .then(() => res.status(200).json({ message: 'User account modified !' }))
+                    .catch(error => res.status(500).json({ message: "Internal servor error udate", error: error }));
+                } else {
+                    return res.status(401).json({ error: "Access denied!" });
+                }
+
+            })
+            .catch(error => res.status(500).json({ message: "Internal servor error find", error: error }));
+        }
+    })
+    .catch(err => res.status(500).json({error: err}));
+}
