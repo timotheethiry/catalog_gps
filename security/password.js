@@ -8,9 +8,9 @@ pwSchema
 .has().uppercase()
 .has().lowercase()
 .has().letters()
-.has().digits(1)
+.has().digits(1)                                        // At least one digit
 .has().not().spaces()
 .has().not().symbols()
-.is().not().oneOf(['Passw0rd', 'Password123', 'Password0000', '000000', '012345', '123456']);
+.is().not().oneOf(['Passw0rd', 'Password123', 'Password0000']);
 
 module.exports = pwSchema;

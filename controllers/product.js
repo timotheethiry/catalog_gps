@@ -57,7 +57,7 @@ exports.createProduct = (req, res, next) => {
 exports.getProduct = (req, res, next) => {
 
     Product.findOne({ _id: req.params.id })
-    .then(product => res.status(200).json(product))
+    .then(product => res.status(200).json(product)) // find a non-existent category
     .catch(error => res.status(404).json({ error }));
 };
 
