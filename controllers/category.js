@@ -4,125 +4,142 @@ const { Validator } = require('node-input-validator');
 const Category = require('../models/category');
 const User = require('../models/user');
 
-exports.createCategory = (req, res, next) => {
 
-    User.findOne({userId: res.locals.userId})
-    .then(user => {
-        if( user.isAdmin ) {
+exports.getCategory = async (req, res, next) => { 
+    try {
+        const existingCategory = await Category.findOne({ _id: req.params.id });
 
-            const categoryInput = {...req.body};
-        
-            const validInput = new Validator(categoryInput, {
-                name: 'required|string|length:100',
-            }); 
-
-            validInput
-            .check()
-            .then((matched) => {
-                
-                if (!matched) {
-                    res.status(400).send(validInput.errors);
-                } else {
-                    
-                    const category = new Category({
-                        name: categoryInput.name,
-                    });
-                    
-                    category
-                    .save()
-                    .then(() => res.status(201).json({ message: 'New category created !' }))
-                    .catch(error => res.status(500).json({ error: "Internal servor error" }));
-                };
-            })
-            .catch(() => res.status(500).send(validInput.errors));
-            
-        } else {
-
-            res.status(401).json({ error: "Access denied!" });
+        if (!existingCategory) {
+            return res.status(404).json({ message: "Category not found" });
         }
-    })
-    .catch(() => res.status(500).json({ error: "Internal servor error" }));
 
+        return res.status(200).json(existingCategory);
+        
+    } catch (error) {
+        return res.status(500).json({ message: "Internal servor error", error: error });
+    }
+};
+
+
+exports.getAllCategory = async (req, res, next) => {
+
+    try {
+        const existingCategories = await Category.find();
+
+        if (!existingCategories) {
+            return res.status(404).json({ message: "Categories not found" });
+        }
+
+        return res.status(200).json(existingCategories);
+        
+    } catch (error) {
+        return res.status(500).json({ message: "Internal servor error", error: error });
+    }
+};
+
+
+exports.createCategory = async (req, res, next) => {
+
+    try {
+        const currentUser = await User.findOne({ userId: res.locals.userId });
+
+        if (!currentUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
     
+        if (!currentUser.isAdmin) {
+            return res.status(401).json({ message: "Access denied" });
+        }
+
+        const categoryInput = req.body;
+
+        const validInput = new Validator(categoryInput, {
+            name: 'required|string|length:100',
+        }); 
+
+        const isValid = await validInput.check();
+
+        if (!isValid) {
+            return res.status(400).json({ errors: validInput.errors });
+        }
+
+        const category = new Category({
+            name: categoryInput.name,
+        });
+        
+        const newCategory = await category.save();
+
+        if (!newCategory) {
+            return res.status(404).json({ message: "Category creation failed" });
+        }
+
+        return res.status(201).json({ message: "Category created successfully", category: newCategory });
+
+    } catch (error) {
+        return res.status(500).json({ message: "Internal servor error", error: error });
+    }   
 }
 
-exports.getCategory = (req, res, next) => {
 
-    Category.findOne({ _id: req.params.id })
-    .then(category => res.status(200).json(category)) // find a non-existent category
-    .catch(() => res.status(404).json({ error: "Didn't find category !" }));
-};
+exports.modifyCategory = async (req, res, next) => {
 
-exports.getAllCategory = (req, res, next) => {
+    try {
+        const currentUser = await User.findOne({ userId: res.locals.userId });
 
-    Category.find()
-    .then(categories => res.status(200).json(categories))
-    .catch(error => res.status(404).json({ error: "Didn't find categories !" }));
-};
-
-exports.modifyCategory = (req, res, next) => {
-
-    User.findOne({userId: res.locals.userId})
-    .then(user => {
-        if( user.isAdmin ) {
-
-            const categoryInput = {...req.body};
+        if (!currentUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
     
-            const validInput = new Validator(categoryInput, {
-                name: 'required|string|length:100',
-            }); 
-        
-            validInput
-            .check()
-            .then((matched) => {
-                
-                if (!matched) {
-
-                    res.status(400).send(validInput.errors);
-                } else {
-
-                    Category.findOne({ _id: req.params.id })
-                    .then(() => {
-                       
-                        Category.updateOne({ _id: req.params.id }, { ...categoryInput })
-                        .then(() => res.status(200).json({ message: 'Category modified !' }))
-                        .catch(() => res.status(500).json({ error: "Internal servor error" }));
-
-                    })
-                    .catch(() => res.status(404).json({ error: "Didn't find category !" }));
-                }
-            })
-            .catch(() => res.status(500).send(validInput.errors));
-            
-        } else {
-            res.status(401).json({ error: "Access denied!" });
+        if (!currentUser.isAdmin) {
+            return res.status(401).json({ message: "Access denied" });
         }
-    })
-    .catch(() => res.status(500).json({ error: "Internal servor error" }));
 
+        const categoryInput = req.body;
+
+        const validInput = new Validator(categoryInput, {
+            name: 'required|string|length:100',
+        }); 
+
+        const isValid = await validInput.check();
+
+        if (!isValid) {
+            return res.status(400).json({ errors: validInput.errors });
+        }
+
+        const existingCategory = await Category.findOneAndUpdate({ _id: req.params.id }, req.body, { new: true });
+
+        if (!existingCategory) {
+            return res.status(404).json({ message: "Category not found" });
+        }
+
+        return res.status(200).json({ message: "Category updated successfully", category: existingCategory });
+
+    } catch (error) {
+        return res.status(500).json({ message: "Internal servor error", error: error });
+    } 
 };
 
-exports.deleteCategory = (req, res, next) => {
+exports.deleteCategory = async (req, res, next) => {
 
-    User.findOne({userId: res.locals.userId})
-    .then(user => {
-        if( user.isAdmin ) {
+    try {
+        const currentUser = await User.findOne({ userId: res.locals.userId });
 
-        Category.findOne({ _id: req.params.id })
-        .then(() => {
-
-            Category.deleteOne({ _id: req.params.id })
-            .then(() => res.status(200).json({ message: 'Category deleted !' }))
-            .catch(() => res.status(500).json({ error: "Internal servor error"  }));  
-            
-        })
-        .catch(() => res.status(404).json({ error: "Didn't find category !" }));
-            
-        } else {
-
-            res.status(401).json({ error: "Access denied!" });
+        if (!currentUser) {
+            return res.status(404).json({ message: "User not found" });
         }
-    })
-    .catch(() => res.status(500).json({ error: "Internal servor error" }));
-   
+    
+        if (!currentUser.isAdmin) {
+            return res.status(401).json({ message: "Access denied" });
+        }
+
+        const existingCategory = await Category.findOneAndDelete({ _id: req.params.id });
+
+        if (!existingCategory) {
+            return res.status(404).json({ message: "Category not found" });
+        }
+
+        return res.status(200).json({ message: "Category deleted successfully" });
+    } catch (error) {
+        return res.status(500).json({ message: "Internal servor error", error: error });
+    }
 };

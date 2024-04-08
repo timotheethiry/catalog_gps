@@ -1,145 +1,165 @@
-const mongoose = require('mongoose');
-const { Validator } = require('node-input-validator');
+const mongoose = require("mongoose");
+const { Validator } = require("node-input-validator");
 
-const Product = require('../models/product');
-const User = require('../models/user');
+const Product = require("../models/product");
+const User = require("../models/user");
+const product = require("../models/product");
 
-exports.createProduct = (req, res, next) => {
 
-    User.findOne({userId: res.locals.userId})
-    .then(user => {
-        if( user.isAdmin ) {
+exports.getProduct = async (req, res, next) => {
+    try {
+        const existingProduct = await Product.findOne({ _id: req.params.id });
 
-            const productInput = {...req.body};
-            
-            const validInput = new Validator(productInput, {
-                name: 'required|string|length:100',
-                description: 'required|string|length:1000',
-                imageUrl: 'required|url|length:255',
-                price: 'required|numeric|min:0|max:10000', // to add digitsBetween:min,max
-                categories: 'array|length:10' 
-            }); 
-        
-            validInput
-            .check()
-            .then((matched) => {
-                
-                if (!matched) {
-
-                    res.status(400).send(validInput.errors);
-                } else {
-                    
-                    const product = new Product({
-                        name: productInput.name,
-                        description: productInput.description,
-                        imageUrl: productInput.imageUrl,
-                        price: productInput.price,
-                        categories: productInput.categories
-                    });
-                    
-                    product
-                    .save()
-                    .then(() => res.status(201).json({ message: 'New product created !' }))
-                    .catch(error => res.status(500).json({ error }));
-                };
-            })
-            .catch(() => res.status(500).send(validInput.errors));
-
-        } else {
-
-            res.status(401).json({ error: "Access denied!" });
+        if (!existingProduct) {
+            return res.status(404).json({ message : "Product not found" });
         }
-    })
-    .catch(() => res.status(500).json({ error: "Internal servor error" }));
+        return res.status(200).json(existingProduct);
+    } catch (error) {
+        return res.status(500).json({ message: "Internal servor error", error: error });
+    }
+};
 
+
+exports.getAllProducts = async (req, res, next) => {
+    try {
+        const existingProducts = await Product.find();
+        if (!existingProducts) {
+            return res.status(404).json({ message : "Products not found" });
+        }
+        return res.status(200).json(existingProducts);
+    } catch (error) {
+        return res.status(500).json({ message: "Internal servor error", error: error });
+    }
+};
+
+
+exports.getAllProductsByCategory = async (req, res, next) => {
+    try {
+        const existingProducts = await Product.find({ categories: req.params.id });
+        
+        if (!existingProducts) {
+            return res.status(404).json({ message : "Products not found" });
+        }
+        return res.status(200).json(existingProducts);
+    } catch (error) {
+        return res.status(500).json({ message: "Internal servor error", error: error });
+    }
+};
+
+
+exports.createProduct = async (req, res, next) => {
+
+    try {
+        const currentUser = await User.findOne({ userId: res.locals.userId });
+
+        if (!currentUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+    
+        if (!currentUser.isAdmin) {
+            return res.status(401).json({ message: "Access denied" });
+        }
+
+        const productInput = req.body;
+
+        const validInput = new Validator(productInput, {
+            name: "required|string|length:100",
+            description: "required|string|length:1000",
+            imageUrl: "required|url|length:255",
+            price: "required|numeric|min:0|max:10000", // to add digitsBetween:min,maxs
+            categories: "array|length:10" 
+        });
+
+        const isValid = await validInput.check();
+
+        if (!isValid) {
+            return res.status(400).json({ errors: validInput.errors });
+        }
+
+        const product = new Product({
+            name: productInput.name,
+            description: productInput.description,
+            imageUrl: productInput.imageUrl,
+            price: productInput.price,
+            categories: productInput.categories
+        });
+        
+        const newProduct = await product.save();
+
+        if (!newProduct) {
+            return res.status(404).json({ message: "Product creation failed" });
+        }
+
+        return res.status(201).json({ message: "Product created successfully", product: newProduct });
+
+    } catch (error) {
+        return res.status(500).json({ message: "Internal servor error", error: error });
+    }
 }
 
-exports.getProduct = (req, res, next) => {
 
-    Product.findOne({ _id: req.params.id })
-    .then(product => res.status(200).json(product)) // find a non-existent category
-    .catch(error => res.status(404).json({ error }));
-};
+exports.modifyProduct = async (req, res, next) => {
 
-exports.getAllProducts = (req, res, next) => {
+    try {
+        const currentUser = await User.findOne({ userId: res.locals.userId });
 
-    Product.find()
-    .then(products => res.status(200).json(products))
-    .catch(error => res.status(404).json({ error }));
-};
-
-exports.getAllProductsByCategory = (req, res, next) => {
-
-    Product.find({categories: req.params.id})
-    .then(products => res.status(200).json(products))
-    .catch(error => res.status(404).json({ error }));
-};
-
-exports.modifyProduct = (req, res, next) => {
-
-    User.findOne({userId: res.locals.userId})
-    .then(user => {
-        if( user.isAdmin ) {
-
-            const productInput = {...req.body};
-
-            const validInput = new Validator(productInput, {
-                name: 'required|string|length:100',
-                description: 'required|string|length:1000',
-                imageUrl: 'required|url|length:255',
-                price: 'required|numeric|min:0|max:10000', // to add digitsBetween:min,maxs
-                categories: 'array|length:10' 
-            });  
-
-            validInput
-            .check()
-            .then((matched) => {
-                if (!matched) {
-                    res.status(400).send(validInput.errors);
-                } else {
-                    Product.findOne({ _id: req.params.id })
-                    .then(() => {
-
-                        Product.updateOne({ _id: req.params.id }, { ...productInput })
-                        .then(() => res.status(200).json({ message: 'Product modified !' }))
-                        .catch(error => res.status(500).json({ error: "Internal servor error" }));
-
-                    })
-                    .catch(error => res.status(404).json({ error: "Didn't find product" }));
-                }
-            })
-            .catch(() => res.status(500).send(validInput.errors));
-    
-        } else {
-
-            res.status(401).json({ error: "Access denied!" });
+        if (!currentUser) {
+            return res.status(404).json({ message: "User not found" });
         }
-    })
-    .catch(() => res.status(500).json({ error: "Internal servor error" }));
-
     
+        if (!currentUser.isAdmin) {
+            return res.status(401).json({ message: "Access denied" });
+        }
+
+        const validInput = new Validator(req.body, {
+            name: "required|string|length:100",
+            description: "required|string|length:1000",
+            imageUrl: "required|url|length:255",
+            price: "required|numeric|min:0|max:10000", // to add digitsBetween:min,maxs
+            categories: "array|length:10" 
+        });
+
+        const isvalid = await validInput.check();
+
+        if (!isvalid) {
+            return res.status(400).json({ errors: validInput.errors });
+        }
+
+        const existingProduct = await Product.findOneAndUpdate({ _id: req.params.id }, req.body, { new: true });
+
+        if (!existingProduct) {
+            return res.status(404).json({ message: "Product not found" });
+        }
+
+        return res.status(200).json({ message: "Product updated successfully", product: existingProduct });
+
+    } catch (error) {
+        return res.status(500).json({ message: "Internal servor error", error: error });
+    }
 };
 
-exports.deleteProduct = (req, res, next) => {
 
-    User.findOne({userId: res.locals.userId})
-    .then(user => {
-        if( user.isAdmin ) {
+exports.deleteProduct = async (req, res, next) => {
 
-            Product.findOne({ _id: req.params.id })
-            .then(() => {
-                
-                    Product.deleteOne({ _id: req.params.id })
-                    .then(() => res.status(200).json({ message: 'Product deleted !' }))
-                    .catch(error => res.status(500).json({ error: "Internal servor error" })); 
+    try {
+        const currentUser = await User.findOne({ userId: res.locals.userId });
 
-            })
-            .catch(error => res.status(404).json({ error: "Didn't find product" }));
-            
-        } else {
-            res.status(401).json({ error: "Access denied!" });
+        if (!currentUser) {
+            return res.status(404).json({ message: "User not found" });
         }
-    })
-    .catch(() => res.status(500).json({ error: "Internal servor error" }));
+    
+        if (!currentUser.isAdmin) {
+            return res.status(401).json({ message: "Access denied" });
+        }
 
+        const existingProduct = await Product.findOneAndDelete({ _id: req.params.id });
+
+        if (!existingProduct) {
+            return res.status(404).json({ message: "Product not found" });
+        }
+
+        return res.status(200).json({ message: "Product deleted successfully" });
+    } catch (error) {
+        return res.status(500).json({ message: "Internal servor error", error: error });
+    }
 };
