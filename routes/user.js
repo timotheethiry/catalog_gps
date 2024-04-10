@@ -10,12 +10,14 @@ router.post('/signup', userCtr.createUser);
 
 router.post('/login', userCtr.logUser);
 
-router.delete('/:id', auth, userCtr.deleteUser);
+router.use(auth);
 
-router.get('/', auth, userCtr.getAllUsers);
+router.delete('/:id', userCtr.deleteUser);
 
-router.get('/:id', auth, userCtr.getUser);
+router.get('/', userCtr.getAllUsers);
 
-router.put('/:id', auth, userCtr.updateUser);
+router.get('/:id', userCtr.getUser);
+
+router.put('/:id', userCtr.updateUser);
 
 module.exports = router;

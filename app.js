@@ -4,21 +4,28 @@ const mongoose = require('mongoose');
 
 const productRoutes = require('./routes/product');
 const categoryRoutes = require('./routes/category');
-
 const userRoutes = require('./routes/user');
 
-const credentials = {user: process.env.USER, pw: process.env.PW, db: process.env.DB, cl: process.env.CL};
-const origin = `mongodb+srv://${credentials.user}:${credentials.pw}@${credentials.cl}.pd0ue.mongodb.net/${credentials.db}?retryWrites=true&w=majority`;
+const globalErrorHandler = require('./middleware/globalErrorHandler');
 
 const app = express();
 app.use(express.json());
+
+
+
+// CONNEXION TO DB
+
+const credentials = {user: process.env.USER, pw: process.env.PW, db: process.env.DB, cl: process.env.CL};
+const origin = `mongodb+srv://${credentials.user}:${credentials.pw}@${credentials.cl}.pd0ue.mongodb.net/${credentials.db}?retryWrites=true&w=majority`;
 
 mongoose.connect(origin, { useNewUrlParser: true, useUnifiedTopology: true })
 .then(() => console.log('Connected to MongoDB !'))
 .catch(() => console.log('Connexion to MongoDB failed !'));
 
 
+
 // CORS
+
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content, Accept, Content-Type, Authorization');
@@ -26,9 +33,19 @@ app.use((req, res, next) => {
     next();
 });
 
+
+
+// API
+
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
-
 app.use('/api/users', userRoutes);
+
+
+
+// GLOBAL ERROR HANDLER
+app.use(globalErrorHandler);
+
+
 
 module.exports = app;

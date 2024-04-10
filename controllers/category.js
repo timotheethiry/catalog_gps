@@ -1,145 +1,129 @@
 const mongoose = require('mongoose');
 const { Validator } = require('node-input-validator');
 
+const AppError = require('../middleware/AppError');
+const tryCatchWrapper = require('../middleware/tryCatchWrapper');
+
 const Category = require('../models/category');
 const User = require('../models/user');
 
 
-exports.getCategory = async (req, res, next) => { 
-    try {
-        const existingCategory = await Category.findOne({ _id: req.params.id });
+exports.getCategory = tryCatchWrapper(async (req, res, next) => { 
 
-        if (!existingCategory) {
-            return res.status(404).json({ message: "Category not found" });
-        }
+    const existingCategory = await Category.findOne({ _id: req.params.id });
 
-        return res.status(200).json(existingCategory);
-        
-    } catch (error) {
-        return res.status(500).json({ message: "Internal servor error", error: error });
+    if (!existingCategory) {
+        return next(new AppError('Category not found', 404));
     }
-};
+
+    return res.status(200).json(existingCategory);
+});
 
 
-exports.getAllCategory = async (req, res, next) => {
+exports.getAllCategory = tryCatchWrapper(async (req, res, next) => {
 
-    try {
-        const existingCategories = await Category.find();
+    const existingCategories = await Category.find();
 
-        if (!existingCategories) {
-            return res.status(404).json({ message: "Categories not found" });
-        }
-
-        return res.status(200).json(existingCategories);
-        
-    } catch (error) {
-        return res.status(500).json({ message: "Internal servor error", error: error });
+    if (!existingCategories) {
+        return next(new AppError('Categories not found', 404));
     }
-};
+
+    return res.status(200).json(existingCategories);
+});
 
 
-exports.createCategory = async (req, res, next) => {
+exports.createCategory = tryCatchWrapper(async (req, res, next) => {
 
-    try {
-        const currentUser = await User.findOne({ userId: res.locals.userId });
+    const currentUser = await User.findOne({ userId: res.locals.userId });
 
-        if (!currentUser) {
-            return res.status(404).json({ message: "User not found" });
-        }
-    
-        if (!currentUser.isAdmin) {
-            return res.status(401).json({ message: "Access denied" });
-        }
-
-        const categoryInput = req.body;
-
-        const validInput = new Validator(categoryInput, {
-            name: 'required|string|length:100',
-        }); 
-
-        const isValid = await validInput.check();
-
-        if (!isValid) {
-            return res.status(400).json({ errors: validInput.errors });
-        }
-
-        const category = new Category({
-            name: categoryInput.name,
-        });
-        
-        const newCategory = await category.save();
-
-        if (!newCategory) {
-            return res.status(404).json({ message: "Category creation failed" });
-        }
-
-        return res.status(201).json({ message: "Category created successfully", category: newCategory });
-
-    } catch (error) {
-        return res.status(500).json({ message: "Internal servor error", error: error });
-    }   
-}
-
-
-exports.modifyCategory = async (req, res, next) => {
-
-    try {
-        const currentUser = await User.findOne({ userId: res.locals.userId });
-
-        if (!currentUser) {
-            return res.status(404).json({ message: "User not found" });
-        }
-    
-        if (!currentUser.isAdmin) {
-            return res.status(401).json({ message: "Access denied" });
-        }
-
-        const categoryInput = req.body;
-
-        const validInput = new Validator(categoryInput, {
-            name: 'required|string|length:100',
-        }); 
-
-        const isValid = await validInput.check();
-
-        if (!isValid) {
-            return res.status(400).json({ errors: validInput.errors });
-        }
-
-        const existingCategory = await Category.findOneAndUpdate({ _id: req.params.id }, req.body, { new: true });
-
-        if (!existingCategory) {
-            return res.status(404).json({ message: "Category not found" });
-        }
-
-        return res.status(200).json({ message: "Category updated successfully", category: existingCategory });
-
-    } catch (error) {
-        return res.status(500).json({ message: "Internal servor error", error: error });
-    } 
-};
-
-exports.deleteCategory = async (req, res, next) => {
-
-    try {
-        const currentUser = await User.findOne({ userId: res.locals.userId });
-
-        if (!currentUser) {
-            return res.status(404).json({ message: "User not found" });
-        }
-    
-        if (!currentUser.isAdmin) {
-            return res.status(401).json({ message: "Access denied" });
-        }
-
-        const existingCategory = await Category.findOneAndDelete({ _id: req.params.id });
-
-        if (!existingCategory) {
-            return res.status(404).json({ message: "Category not found" });
-        }
-
-        return res.status(200).json({ message: "Category deleted successfully" });
-    } catch (error) {
-        return res.status(500).json({ message: "Internal servor error", error: error });
+    if (!currentUser) {
+        return next(new AppError('User not found', 404));
     }
-};
+
+    if (!currentUser.isAdmin) {
+        return next(new AppError('Access denied', 401));
+    }
+
+    const categoryInput = req.body;
+
+    const validInput = new Validator(categoryInput, {
+        name: 'required|string|length:100',
+    }); 
+
+    const isValid = await validInput.check();
+
+    if (!isValid) {
+        return next(new AppError('A category name is required. Format must be text from 1 to 100 characters', 400));
+    }
+
+    const category = new Category({
+        name: categoryInput.name,
+    });
+    
+    const newCategory = await category.save();
+
+    if (!newCategory) {
+        return next(new AppError('Category creation failed', 400));
+    }
+
+    return res.status(201).json({ message: 'Category created successfully', category: newCategory });
+});
+
+
+exports.modifyCategory = tryCatchWrapper(async (req, res, next) => {
+
+    const currentUser = await User.findOne({ userId: res.locals.userId });
+
+    if (!currentUser) {
+        return next(new AppError('User not found', 404));
+
+    }
+
+    if (!currentUser.isAdmin) {
+        return next(new AppError('Access denied', 401));
+
+        
+    }
+
+    const categoryInput = req.body;
+
+    const validInput = new Validator(categoryInput, {
+        name: 'required|string|length:100',
+    }); 
+
+    const isValid = await validInput.check();
+
+    if (!isValid) {
+        return next(new AppError('A category name is required. Format must be text from 1 to 100 characters', 400));
+    }
+
+    const existingCategory = await Category.findOneAndUpdate({ _id: req.params.id }, req.body, { new: true });
+
+    if (!existingCategory) {
+        return next(new AppError('Category not found', 404));
+    }
+
+    return res.status(200).json({ message: 'Category updated successfully', category: existingCategory });
+});
+
+
+exports.deleteCategory = tryCatchWrapper(async (req, res, next) => {
+
+    const currentUser = await User.findOne({ userId: res.locals.userId });
+
+    if (!currentUser) {
+        return next(new AppError('User not found', 404));
+    }
+
+    if (!currentUser.isAdmin) {
+        return next(new AppError('Access denied', 401));
+    }
+
+    const existingCategory = await Category.findOneAndDelete({ _id: req.params.id });
+
+    if (!existingCategory) {
+        return next(new AppError('Category not found', 404));
+    }
+
+    return res.status(200).json({ message: 'Category deleted successfully' });
+});
