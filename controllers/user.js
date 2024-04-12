@@ -9,6 +9,7 @@ const tryCatchWrapper = require('../middleware/tryCatchWrapper');
 const User = require('../models/user');
 
 const pwRules = require('../security/password');
+const { checkIfAddressIsAlreadyBlocked, checkIfAddressReachedMaxAttempts, updateFailureForThisAddress } = require('../security/failedLoginAtempts');
 
 
 exports.getUser = tryCatchWrapper(async (req, res, next) => {
@@ -98,6 +99,14 @@ exports.createUser = tryCatchWrapper(async (req, res, next) => {
 
 exports.logUser = tryCatchWrapper(async (req, res, next) => {
 
+    const ip = req.ip; 
+
+    const { blocked, remainingTime } = checkIfAddressIsAlreadyBlocked(ip);
+
+    if (blocked) {
+        return next(new AppError(`Too many failed attempts. Please try again in ${ Math.round(remainingTime / 1000) } seconds.`, 401));
+    }
+
     const userInput = req.body;
 
     const validInput = new Validator(userInput, {
@@ -119,9 +128,16 @@ exports.logUser = tryCatchWrapper(async (req, res, next) => {
     }
 
     if (!credentialIsValid) {
+        const { count, threshold } = updateFailureForThisAddress(ip);
+        const { blocked, blockDuration } = checkIfAddressReachedMaxAttempts(ip);
+
+        if (blocked) {
+            return next(new AppError(`Too many failed attempts. Please try again in ${blockDuration / 1000} seconds.`, 401));
+        }
+
         setTimeout(() => {
-            return next(new AppError('Email or password is invalid', 401));
-        }, 3000);
+            return next(new AppError(`Email or password is invalid. ${threshold - count} attempts before being blocked`, 401));
+        }, 10);
         return;
     }
                 
