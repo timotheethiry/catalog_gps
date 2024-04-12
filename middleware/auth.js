@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 
+// CHECK IF USER IS AUTHENTICATED
+
 module.exports = (req, res, next) => {
     try {
 
