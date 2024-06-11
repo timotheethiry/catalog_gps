@@ -8,12 +8,12 @@ router.get('/:id', categoryCtr.getCategory);
 
 router.get('/', categoryCtr.getAllCategory);
 
-router.use(auth);
+// router.use(auth);
 
-router.post('/', categoryCtr.createCategory);
+router.post('/', auth, categoryCtr.createCategory);
 
-router.put('/:id', categoryCtr.modifyCategory);
+router.put('/:id', auth, categoryCtr.modifyCategory);
 
-router.delete('/:id', categoryCtr.deleteCategory);
+router.delete('/:id', auth, categoryCtr.deleteCategory);
 
 module.exports = router;

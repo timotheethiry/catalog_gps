@@ -11,13 +11,13 @@ router.get('/', productCtr.getAllProducts);
 
 router.get('/categories/:id', productCtr.getAllProductsByCategory);
 
-router.use(auth);
+// router.use(auth);
 
-router.post('/', productCtr.createProduct);
+router.post('/', auth, productCtr.createProduct);
 
-router.put('/:id', productCtr.modifyProduct);
+router.put('/:id', auth, productCtr.modifyProduct);
 
-router.delete('/:id', productCtr.deleteProduct);
+router.delete('/:id', auth, productCtr.deleteProduct);
 
 
 module.exports = router;
