@@ -1,0 +1,59 @@
+User valid input
+
+     	- email: 'required|email|length:100',
+     	- password: 'required',
+     	- lastname: 'required|string|length:100',
+     	- firstname: 'required|string|length:100'
+
+
+
+User endpoints
+
+	'/api/users'
+		POST _ '/signup'
+		POST _ '/login'
+		DELETE _ '/:id' _ token required
+		PUT _ '/:id' _ token required
+		GET _ '/:id' _ token required
+		GET _ '/' _ token required
+
+
+
+Category valid input
+
+    	- name: 'required|string|length:100',
+	- productIds: array
+
+
+
+Category endpoints
+
+	'/api/categories'
+		POST _ '/' _ token required
+		DELETE _ '/:id' _ token required
+		PUT _ '/:id' _ token required
+		GET _ '/:id'
+		GET _ '/'
+
+
+
+
+Product valid input
+
+    	- name: 'required|string|length:100',
+    	- description: 'required|string|length:1000',
+    	- imageUrl: 'required|url|length:255',
+    	- price: 'required|numeric|min:0|max:10000',
+    	- categories: 'array|length:10' 
+
+
+
+Product endpoints
+
+	'/api/products' 
+		POST _ '/' _ token required
+		DELETE _ '/:id' _ token required
+		PUT _ '/:id' _ token required
+		GET _ '/:id'
+		GET _ '/category/:id'
+		GET _ '/'
