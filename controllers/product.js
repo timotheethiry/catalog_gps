@@ -1,145 +1,178 @@
-const mongoose = require('mongoose');
-const { Validator } = require('node-input-validator');
+const AppError = require('../middleware/AppError');
+const tryCatchWrapper = require('../middleware/tryCatchWrapper');
 
 const Product = require('../models/product');
+const Category = require('../models/category');
 const User = require('../models/user');
 
-exports.createProduct = (req, res, next) => {
+const { productValidation } = require('../security/validInput');
 
-    User.findOne({userId: res.locals.userId})
-    .then(user => {
-        if( user.isAdmin ) {
 
-            const productInput = {...req.body};
-            
-            const validInput = new Validator(productInput, {
-                name: 'required|string|length:100',
-                description: 'required|string|length:1000',
-                imageUrl: 'required|url|length:255',
-                price: 'required|numeric|min:0|max:10000', // to add digitsBetween:min,max
-                categories: 'array|length:10' 
-            }); 
-        
-            validInput
-            .check()
-            .then((matched) => {
-                
-                if (!matched) {
+exports.getProduct = tryCatchWrapper(async (req, res, next) => {
 
-                    res.status(400).send(validInput.errors);
-                } else {
-                    
-                    const product = new Product({
-                        name: productInput.name,
-                        description: productInput.description,
-                        imageUrl: productInput.imageUrl,
-                        price: productInput.price,
-                        categories: productInput.categories
-                    });
-                    
-                    product
-                    .save()
-                    .then(() => res.status(201).json({ message: 'New product created !' }))
-                    .catch(error => res.status(500).json({ error }));
-                };
-            })
-            .catch(() => res.status(500).send(validInput.errors));
+    const existingProduct = await Product.findOne({ _id: req.params.id });
 
-        } else {
+    if (!existingProduct) {
+        return next(new AppError('Product not found', 404));
+    }
+    return res.status(200).json(existingProduct);
+});
 
-            res.status(401).json({ error: "Access denied!" });
+
+exports.getAllProducts = tryCatchWrapper(async (req, res, next) => {
+
+    const existingProducts = await Product.find();
+    if (!existingProducts) {
+        return next(new AppError('Products not found', 404));
+    }
+    return res.status(200).json(existingProducts);
+});
+
+
+exports.getAllProductsByCategory = tryCatchWrapper(async (req, res, next) => {
+
+    const existingProducts = await Product.find({ categories: req.params.id });
+    
+    if (!existingProducts) {
+        return next(new AppError('Products not found', 404));
+    }
+    return res.status(200).json(existingProducts);
+});
+
+
+exports.createProduct = tryCatchWrapper(async (req, res, next) => {
+
+    const currentUser = await User.findOne({ userId: res.locals.userId });
+
+    if (!currentUser) {
+        return next(new AppError('User not found', 404));
+    }
+
+    if (!currentUser.isAdmin) {
+        return next(new AppError('Access denied', 401));
+    }
+
+    const productInput = req.body;
+    const isValid = await productValidation(productInput);
+
+    if (!isValid) {
+        return next(new AppError('Bad format. Check the required fields and length', 400));
+    }
+
+    const product = new Product({
+        name: productInput.name,
+        description: productInput.description,
+        imageUrl: productInput.imageUrl,
+        price: productInput.price,
+        categories: productInput.categories
+    });
+    
+    const newProduct = await product.save();
+
+    if (!newProduct) {
+        return next(new AppError('Product creation failed', 400));
+    }
+
+    updateNewProductCorrespondingCategories(newProduct);
+
+    return res.status(201).json({ message: 'Product created successfully', product: newProduct });
+});
+
+
+exports.modifyProduct = tryCatchWrapper(async (req, res, next) => {
+
+    const currentUser = await User.findOne({ userId: res.locals.userId });
+
+    if (!currentUser) {
+        return next(new AppError('User not found', 404));
+    }
+
+    if (!currentUser.isAdmin) {
+        return next(new AppError('Access denied', 401));
+    }
+
+    const productInput = req.body;
+    const isvalid = await productValidation(productInput);
+
+    if (!isvalid) {
+        return next(new AppError('Bad format. Check the required fields and length', 400));
+    }
+
+    const existingProduct = await Product.findOneAndUpdate({ _id: req.params.id }, productInput);
+
+    if (!existingProduct) {
+        return next(new AppError('Product not found', 404));
+    }
+
+    updateModifiedProductCorrespondingCategories(existingProduct, productInput);
+
+    return res.status(200).json({ message: 'Product updated successfully', product: existingProduct });
+});
+
+
+exports.deleteProduct = tryCatchWrapper(async (req, res, next) => {
+
+    const currentUser = await User.findOne({ userId: res.locals.userId });
+
+    if (!currentUser) {
+        return next(new AppError('User not found', 404));
+    }
+
+    if (!currentUser.isAdmin) {
+        return next(new AppError('Access denied', 401));
+    }
+
+    const existingProduct = await Product.findOneAndDelete({ _id: req.params.id });
+
+    if (!existingProduct) {
+        return next(new AppError('Product not found', 404));
+    }
+
+    updateDeletedProductCorrespondingCategories(existingProduct);
+
+    return res.status(200).json({ message: 'Product deleted successfully' });
+});
+
+
+async function updateNewProductCorrespondingCategories(newProduct) {
+    if (newProduct.categories) {
+        for (const category of newProduct.categories) {
+            try {
+                await Category.updateOne({ name: category }, { $addToSet: { productIds: newProduct._id }});
+            } catch (error) {
+                return next(new AppError(`Category ${category} update failed for product ID ${newProduct._id}`, 500));
+            }
         }
-    })
-    .catch(() => res.status(500).json({ error: "Internal servor error" }));
-
+    }
 }
 
-exports.getProduct = (req, res, next) => {
 
-    Product.findOne({ _id: req.params.id })
-    .then(product => res.status(200).json(product)) // find a non-existent category
-    .catch(error => res.status(404).json({ error }));
-};
+async function updateModifiedProductCorrespondingCategories(originalProduct, productInput) {
+    const originalCategories = originalProduct.categories;
+    const updatedCategories = productInput.categories || originalCategories;
+    const removedCategories = originalCategories.filter(category => !updatedCategories.includes(category));
 
-exports.getAllProducts = (req, res, next) => {
-
-    Product.find()
-    .then(products => res.status(200).json(products))
-    .catch(error => res.status(404).json({ error }));
-};
-
-exports.getAllProductsByCategory = (req, res, next) => {
-
-    Product.find({categories: req.params.id})
-    .then(products => res.status(200).json(products))
-    .catch(error => res.status(404).json({ error }));
-};
-
-exports.modifyProduct = (req, res, next) => {
-
-    User.findOne({userId: res.locals.userId})
-    .then(user => {
-        if( user.isAdmin ) {
-
-            const productInput = {...req.body};
-
-            const validInput = new Validator(productInput, {
-                name: 'required|string|length:100',
-                description: 'required|string|length:1000',
-                imageUrl: 'required|url|length:255',
-                price: 'required|numeric|min:0|max:10000', // to add digitsBetween:min,maxs
-                categories: 'array|length:10' 
-            });  
-
-            validInput
-            .check()
-            .then((matched) => {
-                if (!matched) {
-                    res.status(400).send(validInput.errors);
-                } else {
-                    Product.findOne({ _id: req.params.id })
-                    .then(() => {
-
-                        Product.updateOne({ _id: req.params.id }, { ...productInput })
-                        .then(() => res.status(200).json({ message: 'Product modified !' }))
-                        .catch(error => res.status(500).json({ error: "Internal servor error" }));
-
-                    })
-                    .catch(error => res.status(404).json({ error: "Didn't find product" }));
-                }
-            })
-            .catch(() => res.status(500).send(validInput.errors));
-    
-        } else {
-
-            res.status(401).json({ error: "Access denied!" });
+    for (const category of removedCategories) {
+        try {
+            await Category.updateOne({ name: category }, { $pull: { productIds: originalProduct._id }});
+        } catch (error) {
+            return next(new AppError(`Category "${category}" update failed for product ID "${originalProduct._id}"`, 500));
         }
-    })
-    .catch(() => res.status(500).json({ error: "Internal servor error" }));
+    }
+}
 
-    
-};
 
-exports.deleteProduct = (req, res, next) => {
-
-    User.findOne({userId: res.locals.userId})
-    .then(user => {
-        if( user.isAdmin ) {
-
-            Product.findOne({ _id: req.params.id })
-            .then(() => {
-                
-                    Product.deleteOne({ _id: req.params.id })
-                    .then(() => res.status(200).json({ message: 'Product deleted !' }))
-                    .catch(error => res.status(500).json({ error: "Internal servor error" })); 
-
-            })
-            .catch(error => res.status(404).json({ error: "Didn't find product" }));
-            
-        } else {
-            res.status(401).json({ error: "Access denied!" });
+async function updateDeletedProductCorrespondingCategories(originalProduct) {
+    if (originalProduct.categories) {  
+        for (const category of originalProduct.categories) {
+            try {
+                await Category.updateOne({ name: category }, { $pull: { productIds: originalProduct._id }});
+            } catch (error) {
+                return next(new AppError(`Category "${category}" update failed for product ID "${originalProduct._id}"`, 500));
+            }
         }
-    })
-    .catch(() => res.status(500).json({ error: "Internal servor error" }));
+    }
+}
 
-};
+
+

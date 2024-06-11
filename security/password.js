@@ -8,7 +8,7 @@ pwSchema
 .has().uppercase()
 .has().lowercase()
 .has().letters()
-.has().digits(1)                                        // At least one digit
+.has().digits(1)
 .has().not().spaces()
 .has().not().symbols()
 .is().not().oneOf(['Passw0rd', 'Password123', 'Password0000']);

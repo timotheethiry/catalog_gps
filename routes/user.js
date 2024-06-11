@@ -10,6 +10,8 @@ router.post('/signup', userCtr.createUser);
 
 router.post('/login', userCtr.logUser);
 
+// router.use(auth);
+
 router.delete('/:id', auth, userCtr.deleteUser);
 
 router.get('/', auth, userCtr.getAllUsers);
